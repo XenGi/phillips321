@@ -17,21 +17,21 @@
 #	use MAC address as unique key
 
 f_main(){
-    #Ping multicast address for local neighbours and store as LinkLocalNeighbours
+    # Ping multicast address for local neighbours and store as LinkLocalNeighbours
     echo -n "[+]Pinging (ff02::1) multicast for nodes on link local. "
-    LinkLocalNeighbours=$(ping6 -c 3 -I ${interface} ff02::1 | grep icmp_seq | cut -d" " -f4 | cut -d"," -f 1 | sort -u)
+    LinkLocalNeighbours=$(ping -6 -c 3 -I ${interface} ff02::1 2>/dev/null | grep icmp_seq | cut -d" " -f4 | cut -d"," -f 1 | sort -u)
     echo "Done"
 
-    #Ping multicast address for router neighbours and store as RouterLocalNeighbours
+    # Ping multicast address for router neighbours and store as RouterLocalNeighbours
     echo -n "[+]Pinging (ff02::2) multicast for routers. "
-    RouterLocalNeighbours=$(ping6 -c 3 -I ${interface} ff02::2 | grep icmp_seq | cut -d" " -f4 | cut -d"," -f 1 | sort -u)
+    RouterLocalNeighbours=$(ping -6 -c 3 -I ${interface} ff02::2 2>/dev/null | grep icmp_seq | cut -d" " -f4 | cut -d"," -f 1 | sort -u)
     echo "Done"
 
-    #Ping multicast address for global neighbours and store as GlobalNeighbours
+    # Ping multicast address for global neighbours and store as GlobalNeighbours
     echo -n "[+]Pinging (ff02::1) multicast for nodes on Global Interface. "
     IPV6Address=$(ip -6 addr | grep "inet6" | grep -v "::1" | grep -v "fe80"| grep -Ev "inet6\ f(c|d)" | grep -v "temporary" | awk {'print $2'} | cut -d"/" -f1)
     if [ ! -z ${IPV6Address} ]; then
-        GlobalNeighbours=$(ping6 -c 3 -I ${IPV6Address} ff02::1 | grep icmp_seq | cut -d" " -f4 | cut -d"," -f 1 | sort -u | rev | cut -c 2- | rev)
+        GlobalNeighbours=$(ping -6 -c 3 -I ${IPV6Address} ff02::1 2>/dev/null | grep icmp_seq | cut -d" " -f4 | cut -d"," -f 1 | sort -u | rev | cut -c 2- | rev)
         { for i in ${GlobalNeighbours} ; do ping6 -c 1 -I ${interface} $i ; done } &> /dev/null
     else
         IPV6Address=""; GlobalNeighbours=""
@@ -50,13 +50,13 @@ f_main(){
         IPV6LL=$(echo ${IPV6LL} | head -n1 | cut -d"%" -f1 | sed "s/:\$//g")
         IPV6LL_WITH_INTERFACE="${IPV6LL}%${interface}"
 
-        #Get LinkLocal MAC from NDP table
+        # Get LinkLocal MAC from NDP table
         ShortMAC=$(ip -6 neigh show ${IPV6LL} | awk {'print $5'} | sed 's/0\([0-9A-Fa-f]\)/\1/g')
         LongMAC=$(ip -6 neigh show ${IPV6LL} | awk {'print $5'})
         if [ -z ${ShortMAC} ] ; then ShortMAC=$(cat /sys/class/net/${interface}/address | sed 's/0\([0-9A-Fa-f]\)/\1/g'); fi
         if [ -z ${LongMAC} ] ; then LongMAC=$(cat /sys/class/net/${interface}/address); fi
 
-        #Use MAC to pair up with IPv4 address and global IPv6
+        # Use MAC to pair up with IPv4 address and global IPv6
         if [ ! -z ${ShortMAC} ]; then
             IPV4Address=$(echo "${ArpScan}" | grep "${LongMAC}" | head -n1 | cut -f1)
             IPV6G=""
@@ -70,7 +70,7 @@ f_main(){
             fi
         fi
 
-        #IPv4 not found so might be you or not in subnet?
+        # IPv4 not found so might be you or not in subnet?
         if [ -z ${IPV4Address} ]; then #Unable to find IPv4 so possibly you
             IPV4Address=$(ip -4 addr show ${interface} | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p')
             Info="You?"
